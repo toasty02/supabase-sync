@@ -1,0 +1,13 @@
+{
+  "name": "supabase-sync",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "sync_verified_users.js",
+  "dependencies": {
+    "xmlrpc": "^1.3.2",
+    "@supabase/supabase-js": "^2.39.5"
+  },
+  "scripts": {
+    "start": "node sync_verified_users.js"
+  }
+}
