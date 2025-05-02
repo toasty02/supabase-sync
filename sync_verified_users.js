@@ -12,6 +12,7 @@ const {
 } = process.env;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+const supabaseAdmin = supabase.auth.admin;
 
 // XML-RPC auth
 const common = xmlrpc.createClient({ url: `${ODOO_URL}/xmlrpc/2/common` });
@@ -42,6 +43,29 @@ const users = await new Promise((resolve, reject) => {
     }
   );
 });
+
+for (const u of users) {
+  try {
+    const { data: existing } = await supabaseAdmin.listUsers({
+      page: 1,
+      perPage: 1000,
+    });
+
+    const userExists = existing?.users.find((user) => user.email === u.email);
+
+    if (!userExists) {
+      const generatedPassword = `cibv_${u.id}_user`; // or pull from Odoo later
+      console.log(`Creating Supabase Auth user for ${u.email}`);
+      await supabaseAdmin.createUser({
+        email: u.email,
+        password: generatedPassword,
+        email_confirm: true,
+      });
+    }
+  } catch (err) {
+    console.error(`Failed to process auth user for ${u.email}:`, err.message || err);
+  }
+}
 
 const { error } = await supabase
   .from("verified_users")
@@ -88,7 +112,34 @@ if (deactivated.length > 0) {
     marked_at: new Date().toISOString(),
     synced_at: new Date().toISOString()
   }));
-
+  
+  const { error: updateError } = await supabase
+    .from("verified_users")
+    .upsert(updates, { onConflict: "email" });
+  
+  if (updateError) {
+    console.error("Error updating inactive users:", updateError);
+    process.exit(1);
+  }
+  
+  // ✅ Immediately delete matching Supabase Auth users
+  for (const user of deactivated) {
+    try {
+      const { data: authUsers } = await supabaseAdmin.listUsers({
+        page: 1,
+        perPage: 1000,
+      });
+  
+      const match = authUsers?.users.find((u) => u.email === user.email);
+      if (match) {
+        console.log(`Deleting Supabase Auth user for ${user.email}`);
+        await supabaseAdmin.deleteUser(match.id);
+      }
+    } catch (err) {
+      console.error(`Failed to delete auth user ${user.email}:`, err.message || err);
+    }
+  }
+  
 // Delete users inactive for more than 7 days
 const now = new Date();
 const threshold = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000); // 7 days ago
@@ -118,12 +169,12 @@ if (expired.length > 0) {
   }
 }
 
-  const { error: updateError } = await supabase
+  const { error: inactiveUserUpdateError } = await supabase
     .from("verified_users")
     .upsert(updates, { onConflict: "email" });
 
-  if (updateError) {
-    console.error("Error updating inactive users:", updateError);
+  if (inactiveUserUpdateError ) {
+    console.error("Error updating inactive users:", inactiveUserUpdateError );
     process.exit(1);
   }
 } else {

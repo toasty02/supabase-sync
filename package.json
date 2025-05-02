@@ -4,8 +4,8 @@
   "type": "module",
   "main": "sync_verified_users.js",
   "dependencies": {
-    "xmlrpc": "^1.3.2",
-    "@supabase/supabase-js": "^2.39.5"
+    "@supabase/supabase-js": "^2.49.4",
+    "xmlrpc": "^1.3.2"
   },
   "scripts": {
     "start": "node sync_verified_users.js"
