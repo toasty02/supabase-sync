@@ -61,5 +61,44 @@ if (error) {
   process.exit(1);
 }
 
+// Get emails of active Odoo users
+const activeEmails = users.map((u) => u.email);
+
+// Fetch all Supabase users (including previously synced)
+const { data: allUsers, error: fetchError } = await supabase
+  .from("verified_users")
+  .select("email, active");
+
+if (fetchError) {
+  console.error("Error fetching users from Supabase:", fetchError);
+  process.exit(1);
+}
+
+// Identify users who are now missing from Odoo
+const deactivated = allUsers.filter(
+  (user) => !activeEmails.includes(user.email) && user.active
+);
+
+if (deactivated.length > 0) {
+  console.log(`Marking ${deactivated.length} users as inactive in Supabase...`);
+
+  const updates = deactivated.map((user) => ({
+    email: user.email,
+    active: false,
+    synced_at: new Date().toISOString()
+  }));
+
+  const { error: updateError } = await supabase
+    .from("verified_users")
+    .upsert(updates, { onConflict: "email" });
+
+  if (updateError) {
+    console.error("Error updating inactive users:", updateError);
+    process.exit(1);
+  }
+} else {
+  console.log("✅ No deactivated users to mark.");
+}
+
 console.log(`✅ Synced ${users.length} users from Odoo.`);
 process.exit(0);
