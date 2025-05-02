@@ -1,0 +1,30 @@
+name: Sync Odoo Users
+
+on:
+  schedule:
+    - cron: '0 3 * * *'  # Runs daily at 3 AM UTC
+  workflow_dispatch:       # Allows manual run via GitHub UI
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run sync script
+        run: node sync_verified_users.js
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          ODOO_URL: ${{ secrets.ODOO_URL }}
+          ODOO_DB: ${{ secrets.ODOO_DB }}
+          ODOO_USER: ${{ secrets.ODOO_USER }}
+          ODOO_PASS: ${{ secrets.ODOO_PASS }}
