@@ -85,8 +85,38 @@ if (deactivated.length > 0) {
   const updates = deactivated.map((user) => ({
     email: user.email,
     active: false,
+    marked_at: new Date().toISOString(),
     synced_at: new Date().toISOString()
   }));
+
+// Delete users inactive for more than 7 days
+const now = new Date();
+const threshold = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000); // 7 days ago
+
+const { data: expired, error: fetchExpiredError } = await supabase
+  .from("verified_users")
+  .select("email, marked_at")
+  .lte("marked_at", threshold.toISOString())
+  .eq("active", false);
+
+if (fetchExpiredError) {
+  console.error("Failed to fetch expired users:", fetchExpiredError);
+  process.exit(1);
+}
+
+if (expired.length > 0) {
+  console.log(`Deleting ${expired.length} users permanently...`);
+
+  const { error: deleteExpiredError } = await supabase
+    .from("verified_users")
+    .delete()
+    .in("email", expired.map((u) => u.email));
+
+  if (deleteExpiredError) {
+    console.error("Failed to delete expired users:", deleteExpiredError);
+    process.exit(1);
+  }
+}
 
   const { error: updateError } = await supabase
     .from("verified_users")
