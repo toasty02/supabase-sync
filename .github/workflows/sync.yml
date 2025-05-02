@@ -2,7 +2,7 @@ name: Sync Odoo Users
 
 on:
   schedule:
-    - cron: '0 3 * * *'  # Runs daily at 3 AM UTC
+    - cron: '*/7 * * * *'  # every 7 minutes
   workflow_dispatch:       # Allows manual run via GitHub UI
 
 jobs:
